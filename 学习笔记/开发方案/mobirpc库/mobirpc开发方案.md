@@ -32,3 +32,9 @@
     1. 调用推送请求,设置检查的模式，设置g_PushInterval, g_Count
     2. 等待回调函数设置g_PushDataQueue,g_Result
 + 推送数据回调函数const char* Callback( char *pszdata)
+
+
+
+
+mysql_conf
+MYSQL= os.environ.get('mysql_address')
