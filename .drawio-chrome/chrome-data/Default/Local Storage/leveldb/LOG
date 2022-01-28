@@ -1,2 +1,3 @@
-2021/12/10-14:09:51.508 1414 Creating DB c:\Users\viruser.v-desktop\Desktop\MyNoteBook\.drawio-chrome\chrome-data\Default\Local Storage\leveldb since it was missing.
-2021/12/10-14:09:51.564 1414 Reusing MANIFEST c:\Users\viruser.v-desktop\Desktop\MyNoteBook\.drawio-chrome\chrome-data\Default\Local Storage\leveldb/MANIFEST-000001
+2022/01/24-11:07:48.787 1f64 Reusing MANIFEST d:\MyNoteBook\.drawio-chrome\chrome-data\Default\Local Storage\leveldb/MANIFEST-000001
+2022/01/24-11:07:48.795 1f64 Recovering log #3
+2022/01/24-11:07:48.795 1f64 Reusing old log d:\MyNoteBook\.drawio-chrome\chrome-data\Default\Local Storage\leveldb/000003.log 
