@@ -54,3 +54,9 @@
 git config --global --unset http.proxy
 //取消https代理 
 git config --global --unset https.proxy
+
+#### git cherry-pick 
+
++ 作用： apply some changes introduced by some exist commit
++ 用法: git cherry-pick commitid1 commitid2
++ Note: git cherry-pick 会在应用的分支上产生一个新的commitid，不会使用原有的commitid  

@@ -1,0 +1,7 @@
+
+Todo:
+  ✔ mobiauth自测及测试报告 @started(22-03-09 10:55) @done(22-03-10 13:43) @lasted(1d2h48m12s)
+    --- 提交代码
+  ✔ 客户端查下用户的注册时间 @started(22-03-10 13:44) @done(22-03-10 13:44) @lasted(34s)
+    --- 用户登录时，主站从认证中心取firstLoginTime(warning日志 logSpecificReqResponse),小于新用户间隔时会下发GID=1，标记该用户为新用户。
+  ☐ mobiauth  内存泄漏及不规范内存使用优化

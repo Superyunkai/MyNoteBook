@@ -51,9 +51,11 @@
             for line in res:
                 #这步可能无法打印出中文，这是由于line[i]为二进制流，python的print函数不会自动对其编码，使用的标准输出流中的编码集(ASCII)
                 #可以设置1.export LC_ALL="en_US.utf8" 2. import sys ,codecs / sys.stdoput = codecs.getwriter("utf-8")(sys.stdoput.detach)
-                print line[i]
+                print line[i
             cur.close()
             conn.commit()
             cnn.close()
         ```
 
+#### python 查询etcd数据库
+    1. 
