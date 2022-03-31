@@ -60,3 +60,8 @@ git config --global --unset https.proxy
 + 作用： apply some changes introduced by some exist commit
 + 用法: git cherry-pick commitid1 commitid2
 + Note: git cherry-pick 会在应用的分支上产生一个新的commitid，不会使用原有的commitid  
+
+
+#### 让vscode记住用户名和密码
+git设置好git的用户名密码
+git config --global credential.helper store

@@ -88,17 +88,7 @@
   2. 需要把原先右值引用的指针成员置空，及取消原有右值引用成员的所有权，防止资源被释放
   3. 需要检查是否存在自赋值，然后才能先delet自己的成员再浅拷贝
 
-### std::move()
-+ 作用： 把一个左值转换为右值，并承诺原值不再使用，即废弃
-  
-+ 实现：
-```C++
-    // FUNCTION TEMPLATE move
-    template <class _Ty>
-    _NODISCARD constexpr remove_reference_t<_Ty>&& move(_Ty&& _Arg) noexcept { // forward _Arg as movable
-        return static_cast<remove_reference_t<_Ty>&&>(_Arg);
-    }
-```
+
     
 
 ## C++标准库函数及系统函数
@@ -122,6 +112,33 @@
     // \return -1 for Error, >=0 for 文件数量
     
 ```
+### std::move()
++ 作用： 把一个左值转换为右值，并承诺原值不再使用，即废弃
+  
++ 实现：
+```C++
+    // FUNCTION TEMPLATE move
+    template <class _Ty>
+    _NODISCARD constexpr remove_reference_t<_Ty>&& move(_Ty&& _Arg) noexcept { // forward _Arg as movable
+        return static_cast<remove_reference_t<_Ty>&&>(_Arg);
+    }
+```
+### std::find()
+
++ Defined in header <algorithm>
++ 函数原型:
+```C++
+Defined:
+    template< class InputIt, class T >
+    InputIt find( InputIt first, InputIt last, const T& value );
+
+Parameters:
+    first, last - the range of the elements to examine
+          value - value to compare the elements to
+        
+```
+  
+  
 
 ## C++代码实现技巧
 
