@@ -172,12 +172,60 @@ Parameters:
           value - value to compare the elements to
         
 ```
-  
-  
 
- #  C++代码实现技巧
+##  2. 判断文件是否存在
 
- ##  1. 柔性数组（flexible array)
+头文件: <sys/types.h>
+        <sys/stat.h>
+        <unistd.h>
+
+函数原型： 
+```C++
+int stat(const char *path, struct stat*buf)
+int fstat(int fd, struct stat *buf)
+int lstat(const char *path, struct stat *buf)
+```
+
+描述:以上函数返回文件的相关信息。对文件权限没有要求，但是当使用stat和lstat时，其文件所在目录需要有执行权限。三个函数的区别在于传入文件的类型：
+1. stat():路径
+2. lstat():链接文件, 显示该链接文件的信息，而不是链接指向的文件的信息
+3. fstat(): 文件描述符
+
+获得的内容:
+```C++
+struct stat {
+    dev_t     st_dev;     /* ID of device containing file */
+    ino_t     st_ino;     /* inode number */
+    mode_t    st_mode;    /* protection */
+    nlink_t   st_nlink;   /* number of hard links */
+    uid_t     st_uid;     /* user ID of owner */
+    gid_t     st_gid;     /* group ID of owner */
+    dev_t     st_rdev;    /* device ID (if special file) */
+    off_t     st_size;    /* total size, in bytes */
+    blksize_t st_blksize; /* blocksize for file system I/O */
+    blkcnt_t  st_blocks;  /* number of 512B blocks allocated */
+    time_t    st_atime;   /* time of last access */
+    time_t    st_mtime;   /* time of last modification */
+    time_t    st_ctime;   /* time of last status change */
+};
+```
+[更多内容见](https://linux.die.net/man/2/stat)
+
+返回值：0-succ  -1-err  设置errno
+常见errno:
+EACCES      path的路径前缀目录之一的搜索权限被拒绝
+EBADF       fd 错误
+EFAULT      地址错误
+ELOOP       过多符号链接
+ENAMETOOLONG path过长
+ENOENT      路径为空或不存在
+ENOMEM      超出内存
+ENOTDIR     path的前缀目录之一是普通文件
+EOVERFLOW   文件大小超出范围
+
+#  C++代码实现技巧
+
+##  1. 柔性数组（flexible array)
 C99标准中，允许结构体的最后一个元素是未知大小的数组，成为柔性数组成员。但是结构体中柔性数组成员前必须有一个其他成员。
 柔性数组成员的结构允许结构体包含一个大小可变的数组。sizeof操作符返回的这种结构体的大小不包括改柔性数组的大小。
 包含柔性数组成员函数的结构要用malloc函数进行内存的动态分配，并且分配的内存大小应该大于结构体的大小
@@ -191,13 +239,92 @@ C99标准中，允许结构体的最后一个元素是未知大小的数组，�
     type_a *p = (type_a*)malloc(sizeof(type_a) + 100 * sizeof(char))
 ```
 
- ## 2. 指针
+## 2. 指针
 + 函数指针: typedef void (*pf)(int, int)
 + restrict 关键词是一个限定词，可以被用在指针上，它向编译器保证，在这个指针的生命周期内，通过这个指针访问的内存，都只能被这个指针修改。
 
- # 5 多线程
+## 3. Varint 表示法
+简介：Varint是一种紧凑型数字表示法，使用一个或多个字节的内存来表示整数。比如对于uint32_t类型的数字，通常是需要4byte来表示，较小的数字甚至可以用1byte来表示，而较大的数使用5个byte来表示。从统计的角度来说，较小的数字出现的频率较高，项目中也不可能都是较大的数字，所以使用这中方法可以节省空间
+实现：每个byte的最高位有特殊含义，如果为1，则表示后续的byte也为这个数字的一部分，为0则表示结束。也就是说128以下的数字只需要一个byte， 而大于128的需要两个byte。如果特别大的数字需要5个字节， 使用Varint表示法时所需空间：n, 表示的数字大小为：2^n*7
 
- ## 1 Introduce
+编码实现：
+```C++
+char* EncodeVarint32(char* dst, uint32_t v) {
+  // Operate on characters as unsigneds
+  unsigned char* ptr = reinterpret_cast<unsigned char*>(dst);
+  static const int B = 128;
+  // 0000 0101 0010 1000
+  // 0000 0000 1000 0000
+  if (v < (1<<7)) {
+    *(ptr++) = v;
+  } else if (v < (1<<14)) {
+    // 0000 01010 1010 1000
+    *(ptr++) = v | B;
+    *(ptr++) = v>>7;
+  } else if (v < (1<<21)) {
+    *(ptr++) = v | B;
+    *(ptr++) = (v>>7) | B;
+    *(ptr++) = v>>14;
+  } else if (v < (1<<28)) {
+    *(ptr++) = v | B;
+    *(ptr++) = (v>>7) | B;
+    *(ptr++) = (v>>14) | B;
+    *(ptr++) = v>>21;
+  } else {
+    *(ptr++) = v | B;
+    *(ptr++) = (v>>7) | B;
+    *(ptr++) = (v>>14) | B;
+    *(ptr++) = (v>>21) | B;
+    *(ptr++) = v>>28;
+  }
+  return reinterpret_cast<char*>(ptr);
+}
+```
+## 4. 可变参数与可变宏
+### 4.1可变函数参数
+可变参数的函数最常见的就是printf()和scanf()。它的实现主要依赖以下几个宏
++ val_list   
++ val_start
++ val_end
+这几个宏有C库函数<stdarg.h>提供
+```C++
+bool  func(char *params, ...)
+{
+    //创建变参列表
+    val_list paramlist;
+    // 初始化，获取最后一个实参的下一个参数的指针
+    val_start(paramlist, params);
+    while(paramlist != NULL)
+    {
+        // 以指定类型获取参数，并将paramlist指向下一个参数
+        char * key = va_arg(paramlist, char *);
+        if (strcmp(key, "arg_end"))
+            break;
+    }
+    val_end(paramlist);
+}
+```
+以上只能使用在真正的函数上
+
+### 4.2 可变参数宏
+在C99编译器中提供了新的宏**__VA_ARGS__**，实现宏的多参数。可变参数宏不被ANSI/ISO C++ 所正式支持。因此，你应当检查你的编译器，看它是否支持这项技术。
+其实现思想就是编译器用__VA_ARGS__去替代宏定义中...号的部分，其使用如下
+
+```C++
+//在GUNC中实现如下
+#define pr_debug(fmt,arg...) \ 
+printf(KERN_DEBUG fmt, ##arg)
+
+
+//C99,目前似乎只有gcc支持
+#define debug(...) printf(__VA_ARGS__)
+```
+
+
+
+#  多线程
+
+## 1 Introduce
 ``` C++
     #include<thread>
     #include<stdio.h>
@@ -340,4 +467,90 @@ C++标准库std::thread::hardware_concurrency()函数，它返回一个指标，
 
 
  #  对象（CLASS)
+
+# 网络编程
+## 1. 套接字编程
+### 1.1 connect函数在阻塞和非阻塞下的行为
+阻塞行为下connect函数会等待一个明确的结果并返回，这通常需要一段时间，在实际编程中我们通常使用更加高效的异步的方式去创建socket
+非阻塞变成的流程如下：
+1. 创建socket，并设置为非阻塞
+2. 调用connect函数，此时connect函数立即返回，如果返回-1不一定代表出错
+3. 接着调用select或者poll函数在一定时间内判断改socket是否可写，如果不可写则说明连接失败
+代码实现如下：
+```C++
+    /*
+    异步实现connect
+    */  
+    #include <sys/types.h>
+    #include <sys/socket.h>
+    #include <arpa/inet.h>
+    #include <unistd.h>
+    #define SERVER_ADDR "127.0.0.1"
+    #define SERVER_PORT 3000
+    #define SEND_DATA "...."
+    int main()
+    {
+        if ((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+        {
+            return -1;
+        }
+        // 设置非阻塞
+        if (fcntl(fd, F_SETFL, O_NONBLOCK) == -1)
+        {
+            return -1;
+        }
+        
+        //连接服务器
+        struct sockaddr_in serveraddr;
+        serveraddr.sin_family = AF_INET;
+        serveraddr.sin_addr.s_addr = inet_addr(SERVER_ADDR);
+        serveraddr.sin_port = htons(SERVER_PORT);
+        int ret = connect(fd, (struct sockaddr *)&serveraddr, sizeof serveraddr);
+        fd_set writeset;
+        FD_ZERO(&writeset);
+        FD_SET(clientfd, &writeset);
+        //可以利用tv_sec和tv_usec做更小精度的超时控制
+        struct timeval tv;
+        tv.tv_sec = 3;  
+        tv.tv_usec = 0;
+        //linux 下不仅select可写，而且socket错误码不能为0
+        if (select(fd+1, NULL, &writeset, NULL , &tv) != 1)
+            return -1;
+        if (::getsocketopt(fd, SOL_SOCKET, SOERROR,&err, %len) <0)
+            return -1;
+        
+
+
+    }
+
+```
+### 1.2 bind函数重难点
+bind函数基本使用如下
+```C++
+struct sockaddr_in bindaddr;
+bindaddr.sin_family = AF_INET;
+bindaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+bindaddr.sin_port = htons(3000);
+if (bind(listenfd, (struct sockaddr *)&bindaddr, sizeof(bindaddr)) == -1)
+{
+    std::cout << "bind listen socket error." << std::endl;
+    return -1;
+}
+```
+其中INADDR_ANY是一个宏，其意义是当套接字不关心具体的ip地址时，使用该宏，协议底层会自动选择ip，这样对于多网卡机器有利。
+**bind函数的端口问题**
+上述例子的服务端口为3000，当端口不重要时，可以填0，会自动分配端口。值的注意的是，通常bind函数由服务方调用，客户端的端口会由操作系统自动分配。而在特殊情况下要求客户端以特定的端口去连接服务器，此时可以在客户端中调用bind函数。示例如下，在客户端代码中
+```C++
+struct sockaddr_in bindaddr;
+bindaddr.sin_family = AF_INET;
+bindaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+//将socket绑定到20000号端口上去
+bindaddr.sin_port = htons(20000);
+if (bind(clientfd, (struct sockaddr *)&bindaddr, sizeof(bindaddr)) == -1)
+{
+    std::cout << "bind socket error." << std::endl;
+    return -1;
+}
+```
+启动客户端后，使用lsof -i -Pn 命令查看，可以看到客户端确实以20000端口号连接服务器。此时，启动第二个客户端就会因为端口占用而失败。
 
