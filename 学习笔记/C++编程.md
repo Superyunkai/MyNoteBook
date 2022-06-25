@@ -85,7 +85,7 @@
   2 需要把原先右值引用的指针成员置空，及取消原有右值引用成员的所有权，防止资源被释放
   3 需要检查是否存在自赋值，然后才能先delet自己的成员再浅拷贝
 
- ## 4. std::move()
+ ### 1.1 std::move()
 + 作用： 把一个左值转换为右值，并承诺原值不再使用，即废弃
   
 + 实现：
@@ -97,7 +97,7 @@
     }
 ```
     
- ## 5. explict 关键字
+ ## 2. explict 关键字
    
 + explicit关键字指定该构造函数或转换函数为显式(C+++11)，即禁止隐式调用或复制初始化。
 + explicit指定符可以与常量表达式一同使用，当表达式为ture时才为显示(C++20)
@@ -124,6 +124,62 @@
         displayPoint(1);
         Point p = 1;  //can't compile
     }    
+```
+## 3. extern 关键字
+extern 关键字可以置于变量和函数之前，以标示变量或者函数的定义在别的文件，提示编译器遇到此函数和变量时在其他模块中寻找。此外extern也可以用来进行链接指定。用以屏蔽编译器保持当前函数名称，不生成用以链接的中间函数名
+
+## 4. constexpr 关键字
+
+这个关键字在C++11中引入，并在C++14中增强了它的功能。它代表一个常量的表达式，与const相同，它可以应用于一个变量，当任何试图修改其值的行为发生时，编译器会报错。此外，constexpr还可以应用在函数和类的构造函数中，指明返回的为const类型，某些时候可以在编译时确认
+
+## 5. optional 
+The need for "Sometime-a-thing"
+The need for "Yet-a-thing"
+主要是对缺省值的优化，假设有一个函数make_any_int(int a), 它接受一个int类型参数的同时，也希望它无参数调用。通常的方法有声明函数时：
+make_any_int(int a = -1),当a = -1 时则认为是一个无效参数。
+但如果想要参数a覆盖所有整数的范围，一般有两种方式：
+1. make_any_int(int a = -1, bool bvailed = false)
+2. make_any_int(int * a = NULL)
+
+上面两种都可以实现目标但都存在一定的缺陷，第一种需要额外输入一个新的参数，而且用户很容易忘记第二个参数，因为它没有实际意义，如果优化成pair的方式，则有可能用户在两个参数的顺序上出错。第二种方式则并不完全符合原有与语义，我们有时候只是想输入一个整型常量
+
+另一种情况是我们的类持有的资源并不立刻初始化，而是延迟初始化。 对这个资源的访问与是否初始化有关，此时需要一个额外的成员变量来标识是否初始化。而是用optional可以规避这个问题。
+
+对于第一种情况，std::nullopt 表示无效的opt，可以通过显示的调用has_value()方法来检查optional实例是否具有值。当你确定该optional中有值时，也可以直接用*获取。optional支持<,>,<=,>= 等操作符，std:nullopt小于所有非空实例。
+
+```C++
+void maybe_take_an_int(optional<int> potential_value = nullopt); 
+     // or equivalently, "potential_value = {}"
+opional<int> maybe_return_an_int();
+optional<int> o = maybe_return_an_int();
+if (o.has_value()) { /* ... */ }
+if (o) { /* ... */ } // "if" converts its condition to bool
+if (o) { cout << "The value is: " << *o << '\n'; }
+```
+
+对于第二种情况：
+```C++
+using T = /* some object type */;
+
+struct S {
+  optional<T> maybe_T;    
+
+  void construct_the_T(int arg) {
+    // We need not guard against repeat initialization;
+    // optional's emplace member will destroy any 
+    // contained object and make a fresh one.        
+    maybe_T.emplace(arg);
+  }
+
+  T& get_the_T() { 
+    assert(maybe_T);
+    return *maybe_T;    
+    // Or, if we prefer an exception when maybe_T is not initialized:
+    // return maybe_T.value();
+  }
+
+  // ... No error-prone handwritten special member functions! ...
+};
 ```
 
  #  C++标准库函数及系统函数
@@ -454,7 +510,149 @@ C++标准库std::thread::hardware_concurrency()函数，它返回一个指标，
 归根结底，这类问题大多是由于数据改动引起，如果所有的共享数据都是读操作，则不会有问题。
 
 #### 3.1.1 条件竞争
-    条件
+
+
+## 4.C++多线程内存模型
+
+### 4.1 3种内存模型
+考虑如下情况
+![](https://pic3.zhimg.com/80/24e4b3d7c8f5d141695ae08dd62a9509_720w.jpg?source%3D1940ef5c)
+
+上面的图描述了一个问题，A进程读X, B进程读X，A进程写X。
+对此反映了内存系统两方面的行为：
+1. Coherence (连贯性)
+2. Consitency (一致性)
+
+第一个方面需要满足以下三个条件：
++ 系统提供我们在单处理器下熟知的程序次序(program order)
++ 写结果最终对所有处理器可见（合适可见未作描述）
++ 系统提供写串行性
+
+对于第二个方面，也称为**内存一致性模型（Sequential Consitency model）**，本质上是限制了读操作的返回值。
+直观上来说，读操作的返回值应该是最后一次写操作的返回值
++ 在单处理器中，最后一次写操作由program order决定
++ 在多处理器系统中，称为顺序连贯（sequental Consitency,SC)
+
+SC有两点要求：
+1. 在每个处理器内部维护次序
+2. 对于所有的处理器来说，维护单一表征的修改顺序。即不能出现两个处理器看到的修改顺序不同。
+
+为了在特定的硬件优化下实现SC模型，程序会做很多特殊处理，包括不限于缓存一致性协议。这些都会消耗性能，同时SC也限制了编译器优化。
+
+为获得更好的性能，引入了放松内存一致性模型(relaxed memory consistency models),这种模型要求更加简单
+
+### 4.2 C++ 的几种内存序
+C++内存序实际上是约束同一个线程内的内存访问排序方式，虽然编译器保证在一个线程内的内存序重排不会影响最终的结果，但是在多线程的情况下可能会导致不同的结果。
+1. 指令乱序
+   
+   现在的CPU都采用的是多核、多线程技术用以提升计算能力；采用乱序执行、流水线、分支预测以及多级缓存等方法来提升程序性能。多核技术在提升程序性能的同时，也带来了执行序列乱序和内存序列访问的乱序问题。与此同时，编译器也会基于自己的规则对代码进行优化，这些优化动作也会导致一些代码的顺序被重排。
+   ```c++
+    int A = 0;
+    int B = 0;
+
+    void fun() {
+        A = B + 1; // L5
+        B = 1; // L6
+    }
+
+    int main() {
+        fun();
+        return 0;
+    }
+    
+    //g++ test.cpp 生成的汇编指令如下
+    movl    B(%rip), %eax
+    addl    $1, %eax
+    movl    %eax, A(%rip)
+    movl    $1, B(%rip)
+
+    // 使用O2优化
+    movl    B(%rip), %eax
+    movl    $1, B(%rip)
+    addl    $1, %eax
+    movl    %eax, A(%rip)
+   ```
+
+2. 几种关系术语
+   + evalueation(求值): 分为两个部分：value computations 和 side effects(读写)
+   + sequeced-before: 在同一线程内的求值数顺序关系，A sequenced before B, 代表A的求值先完成再对B进行求值, A not sequeced before B , B not sequenced before A,则表示两者都有可能先执行或者同时执行
+   + happens-before：sequence-before的扩展，当A happens-before B , A 操作先完成，且A操作的结果对B可见
+   + synchronizes-with: 不同线程间的同步关系， 保证A的写操作结果在B中可见
+
+3. C++中的六种内存约束
+   ```C++
+   typedef enum memory_order {
+        memory_order_relaxed,
+        memory_order_consume,
+        memory_order_acquire,
+        memory_order_release,
+        memory_order_acq_rel,
+        memory_order_seq_cst
+    } memory_order;
+   ```
+   从读写角度划分为以下三种：
+   + 读操作（memory_order_acquire, memory_order_consume)
+   + 写操作 (memory_order_release)
+   + 读写修改操作(memory_order_acq_rel memory_order_seq_cst)
+  
+   从访问控制的角度分类
+   + Sequential consistency模型(memory_order_seq_cst)
+   + Relax模型(memory_order_relaxed)
+   + Acquire-Release模型(memory_order_consume memory_order_acquire memory_order_release memory_order_acq_rel)
+
+ 从访问控制的强弱排序，Sequential consistency模型最强，Acquire-Release模型次之，Relax模型最弱。
+
+4. Sequential consistency 模型
+   又称顺序一致性模型，是控制粒度最严格的内存模型，在这个模型下，程序的执行顺序和代码顺序严格一致，也就是说不存在指令乱序
+   对应的内存约束符号是memory_order_seq_cst，类似于互斥锁的模式
+5. relax 模型
+   对应的是memory_order_relax, 其对内存序的限制最小，仅保证当前的数据访问是原子的，但是对内存访问顺序没有任何约束，也就是说可能存在读写的重排。通常用于统计数据。
+6. Acquire-Release 模型
+   控制力度介于Relax和Sequential consistency模型之间。其包括两面：
+   + Acquire: 如果操作X带有acquire语义，则在操作X后面的所有读写指令都不会被重排到X之前。有memory_order_acquire, memory_order_acq_rel
+   + Release: 如果操作X带有release语义，则在操作X前的所有读写指令都不会重排到X之前。有memory_order_release, memory_order_acq_rel
+
++ memory_order_release
+  假设有一个原子变量A,对其进行写操作X的时候施加了memory_order_release约束，则在当前线程T1中，操作X之前的任何读写操作指令不能放在操作X之后。当另外一个线程T2对原子变量A进行读操作的时候施加了memory_order_acquire约束符，则当前线程T1中写操作之前的任何读写操作都对线程T2可见；当另外一个线程T2对原子变量A进行读操作的时候，如果施加了memory_order_consume约束符，则当前线程T1中所有原子变量A所依赖的读写操作都对T2线程可见(没有依赖关系的内存操作就不能保证顺序)。
+  需要注意的是，对于施加了memory_order_release约束符的写操作，其写之前所有读写指令操作都不会被重排序写操作之后的前提是：其他线程对这个原子变量执行了读操作，且施加了memory_order_acquire或者 memory_order_consume约束符。
+
++ memory_order_acquire
+  一个对原子变量的load操作时，使用memory_order_acquire约束符：在当前线程中，该load之后读和写操作都不能被重排到当前指令前。如果其他线程使用memory_order_release约束符，则对此原子变量进行store操作，在当前线程中是可见的。
+  假设有一个原子变量A，如果A的读操作X施加了memory_order_acquire标记，则在当前线程T1中，在操作X之后的所有读写指令都不能重排到操作X之前；当其它线程如果对A进行施加了memory_order_release约束符的写操作Y，则这个写操作Y之前所有的读写指令对当前线程T1是可见的(这里的可见请结合 happens-before 原则理解，即那些内存读写操作会确保完成，不会被重新排序)。也就是说从线程T2的角度来看，在原子变量A写操作之前发生的所有内存写入在线程T1中都会产生作用。也就是说，一旦原子读取完成，线程T1就可以保证看到线程 A 写入内存的所有内容。
++ memory_order_acq_rel
+  memory_order_acq_rel，它既可以约束读，也可以约束写。
+  对于使用memory_order_acq_rel约束符的原子操作，对当前线程的影响就是：当前线程T1中此操作之前或者之后的内存读写都不能被重新排序（假设此操作之前的操作为操作A，此操作为操作B，此操作之后的操作为B，那么执行顺序总是ABC，这块可以理解为同一线程内的sequenced-before关系）；对其它线程T2的影响是，如果T2线程使用了memory_order_release约束符的写操作，那么T2线程中写操作之前的所有操作均对T1线程可见；如果T2线程使用了memory_order_acquire约束符的读操作，则T1线程的写操作对T2线程可见。
+  理解起来可能比较绕，这个标记相当于对读操作使用了memory_order_acquire约束符，对写操作使用了memory_order_release约束符。当前线程中这个操作之前的内存读写不能被重排到这个操作之后，这个操作之后的内存读写也不能被重排到这个操作之前。
+
++ memory_order_consume
+  有一个原子变量A，在线程T1中对原子变量的写操作施加了memory_order_release标记符，同时线程T2对原子变量A的读操作被标记为memory_order_consume，则从线程T1的角度来看，在原子变量写之前发生的所有读写操作，只有与该变量有依赖关系的内存读写才会保证不会重排到这个写操作之后，也就是说，当线程T2使用了带memory_order_consume标记的读操作时，线程T1中只有与这个原子变量有依赖关系的读写操作才不会被重排到写操作之后。而如果读操作施加了memory_order_acquire标记，则线程T1中所有写操作之前的读写操作都不会重排到写之后(此处需要注意的是，一个是有依赖关系的不重排，一个是全部不重排)。
+
+7. 总结
+C++11提供的6种内存访问约束符中：
+
+  + memory_order_release：在当前线程T1中，该操作X之前的任何读写操作指令都不能放在操作X之后。如果其它线程对同一变量使用了memory_order_acquire或者memory_order_consume约束符，则当前线程写操作之前的任何读写操作都对其它线程可见(注意consume的话是依赖关系可见)
+
+  + memory_order_acquire：在当前线程中，load操作之后的读和写操作都不能被重排到当前指令前。如果有其他线程使用memory_order_release内存模型对此原子变量进行store操作，在当前线程中是可见的。
+
+  + memory_order_relaxed：没有同步或顺序制约，仅对此操作要求原子性
+
+  + memory_order_consume：在当前线程中，load操作之后的依赖于此原子变量的读和写操作都不能被重排到当前指令前。如果有其他线程使用memory_order_release内存模型对此原子变量进行store操作，在当前线程中是可见的。
+
+  + memory_order_acq_rel：等同于对原子变量同时使用memory_order_release和memory_order_acquire约束符
+
+  + memory_order_seq_cst：从宏观角度看，线程的执行顺序与代码顺序严格一致
+
+  C++的内存模型则是依赖上面六种内存约束符来实现的：
+
+  + Relax模型：对应的是memory_order中的memory_order_relaxed。从其字面意思就能看出，其对于内存序的限制最小，也就是说这种方式只能保证当前的数据访问是原子操作(不会被其他线程的操作打断)，但是对内存访问顺序没有任何约束，也就是说对不同的数据的读写可能会被重新排序
+
+  + Acquire-Release模型：对应的memory_order_consume memory_order_acquire memory_order_release memory_order_acq_rel约束符(需要互相配合使用)；对于一个原子变量A，对A的写操作(Release)和读操作(Acquire)之间进行同步，并建立排序约束关系，即对于写操作(release)X，在写操作X之前的所有读写指令都不能放到写操作X之后；对于读操作(acquire)Y，在读操作Y之后的所有读写指令都不能放到读操作Y之前。
+
+  + Sequential consistency模型：对应的memory_order_seq_cst约束符；程序的执行顺序与代码顺序严格一致，也就是说，在顺序一致性模型中，不存在指令乱序。
+  ![alt](../img/C%2B%2B_memory_order.png)
+
+
+
 
  #  函数对象
 
