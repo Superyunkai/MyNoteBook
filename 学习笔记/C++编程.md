@@ -6,7 +6,7 @@
 
  ## 1. 编译选项
 
- 
+
    ```
         -fno-elide-constructiors    关闭编译器省略复制构造的优化
    ```
@@ -58,7 +58,7 @@
                 int * field;
         }
 
-  ```   
+  ```
   它在每次构造时需要重新申请空间，如果作为函数的返回值，在编译器关闭省略复制构造的优化选项时，会有一次构造和两次拷贝，在每次拷贝中都要重新申请内存，且拷贝后申请的对象又很快被释放，这无疑是很浪费的。
   **在类中增加移动构造函数，减少这种浪费**
   ```C++
@@ -96,9 +96,9 @@
         return static_cast<remove_reference_t<_Ty>&&>(_Arg);
     }
 ```
-    
+
  ## 2. explict 关键字
-   
+
 + explicit关键字指定该构造函数或转换函数为显式(C+++11)，即禁止隐式调用或复制初始化。
 + explicit指定符可以与常量表达式一同使用，当表达式为ture时才为显示(C++20)
   考虑以下代码：
@@ -594,7 +594,8 @@ C++内存序实际上是约束同一个线程内的内存访问排序方式，�
    + 读操作（memory_order_acquire, memory_order_consume)
    + 写操作 (memory_order_release)
    + 读写修改操作(memory_order_acq_rel memory_order_seq_cst)
-  
+    
+   
    从访问控制的角度分类
    + Sequential consistency模型(memory_order_seq_cst)
    + Relax模型(memory_order_relaxed)
@@ -649,7 +650,7 @@ C++11提供的6种内存访问约束符中：
   + Acquire-Release模型：对应的memory_order_consume memory_order_acquire memory_order_release memory_order_acq_rel约束符(需要互相配合使用)；对于一个原子变量A，对A的写操作(Release)和读操作(Acquire)之间进行同步，并建立排序约束关系，即对于写操作(release)X，在写操作X之前的所有读写指令都不能放到写操作X之后；对于读操作(acquire)Y，在读操作Y之后的所有读写指令都不能放到读操作Y之前。
 
   + Sequential consistency模型：对应的memory_order_seq_cst约束符；程序的执行顺序与代码顺序严格一致，也就是说，在顺序一致性模型中，不存在指令乱序。
-  ![alt](../img/C%2B%2B_memory_order.png)
+    ![alt](../img/C%2B%2B_memory_order.png)
 
 
 
@@ -660,13 +661,13 @@ C++11提供的6种内存访问约束符中：
 所有能像函数一样使用的对象统称为函数对 ~~x象~~ 111
  ## 2. 分类
 1 函数类，即重载了（）操作符的类。
-   
+
    它的优势在于可以使用成员变量保存自己的状态
 
 
  #  对象（CLASS)
 
-# 网络编程
+# 5.网络编程
 ## 1. 套接字编程
 ### 1.1 connect函数在阻塞和非阻塞下的行为
 阻塞行为下connect函数会等待一个明确的结果并返回，这通常需要一段时间，在实际编程中我们通常使用更加高效的异步的方式去创建socket
@@ -752,3 +753,6 @@ if (bind(clientfd, (struct sockaddr *)&bindaddr, sizeof(bindaddr)) == -1)
 ```
 启动客户端后，使用lsof -i -Pn 命令查看，可以看到客户端确实以20000端口号连接服务器。此时，启动第二个客户端就会因为端口占用而失败。
 
+
+
+# 6.单元测试

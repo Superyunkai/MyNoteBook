@@ -81,4 +81,13 @@ gdb使用x命令打印内存中的值，命令格式为`x/nfu addr`
 ```
 
 ### 快速产生core
-gcore pid
+gcore pi
+
+### 查看上下文汇编代码
+
+layout asm
+
+### 自动化执行脚本
+
+gdb默认在执行循环时如果有输出，则会分页，等待输出回车以继续，可以使用命令 set pagination off关闭
+
