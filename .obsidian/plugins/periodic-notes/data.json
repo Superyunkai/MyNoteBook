@@ -4,6 +4,7 @@
   "hasMigratedWeeklyNoteSettings": true,
   "daily": {
     "folder": "日记",
+    "template": "日记/daily_template.md",
     "enabled": true
   },
   "weekly": {
